@@ -1,0 +1,1 @@
+export const COOKIE_NAME = "manus-session"; export const UNAUTHED_ERR_MSG = "UNAUTHORIZED"; export const OAUTH_STATE_COOKIE = "manus-oauth-state"; export function encodeOAuthState(obj: any) { return btoa(JSON.stringify(obj)); } export const ONE_YEAR_MS = 31536000000;

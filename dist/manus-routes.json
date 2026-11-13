@@ -1,0 +1,12 @@
+{
+  "routes": [
+    { "path": "/", "title": "Global Brief — The Experience" },
+    { "path": "/front-page", "title": "Global Brief — Beyond the Headline" },
+    { "path": "/story/:id", "title": "Global Brief — Story" },
+    { "path": "/analyse", "title": "Global Brief — Analyse" },
+    { "path": "/about", "title": "Global Brief — About" },
+    { "path": "/login", "title": "Global Brief — Login" },
+    { "path": "/signup", "title": "Global Brief — Sign up" },
+    { "path": "/404", "title": "Global Brief — Not found" }
+  ]
+}
