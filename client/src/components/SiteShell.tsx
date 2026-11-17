@@ -63,7 +63,7 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="masthead-tagline">Beyond the headline:<br /><span>understand the story behind the story.</span></div>
           <div className="masthead-tools">
-            <button className="icon-button" aria-label="Search (coming later)" onClick={() => alert("Search is part of the next edition.")}><Search size={17} /></button>
+            <button className="icon-button" aria-label="Search and analyse" onClick={() => navigate("/analyse")}><Search size={17} /></button>
             {user ? (
               <div className="masthead-auth-user">
                 <span className="masthead-user-greeting">Signed in as <b>{user.firstName}</b></span>

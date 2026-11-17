@@ -1,19 +1,67 @@
 import { ArrowRight, ArrowUpRight, Bookmark, Clock3, ExternalLink, MessageCircle, Sparkles } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { mostDiscussed, stories, topics } from "@/data/news";
 import { RuleHeading, SectionLabel } from "@/components/SiteShell";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSupabaseAuth } from "@/lib/supabaseAuth";
+
+interface FeedItem {
+  title: string;
+  source: string;
+  date: string;
+  link: string;
+  snippet?: string;
+}
 
 export default function Home() {
   const { user } = useSupabaseAuth();
+  const [, navigate] = useLocation();
   const [activeTopic, setActiveTopic] = useState("All stories");
+  const [entryInput, setEntryInput] = useState("");
+  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+  const [feedIsDemo, setFeedIsDemo] = useState(false);
+  const [bookmarked, setBookmarked] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/feed")
+      .then(res => res.json())
+      .then(data => {
+        if (!active) return;
+        const items = Array.isArray(data) ? data : (data?.items || []);
+        if (items.length > 0) {
+          setFeedItems(items.slice(0, 5));
+          if (data?.live === false) setFeedIsDemo(true);
+        } else {
+          setFeedIsDemo(true);
+        }
+      })
+      .catch(() => {
+        if (active) setFeedIsDemo(true);
+      });
+    return () => { active = false; };
+  }, []);
+
   const filtered = activeTopic === "All stories" ? stories : stories.filter(story => story.topic === activeTopic);
   const lead = filtered[0] ?? stories[0];
   const secondary = filtered.slice(1, 3);
 
   const hour = new Date().getHours();
   const salutation = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
+  const handleStartBrief = () => {
+    if (entryInput.trim()) {
+      navigate(`/analyse?q=${encodeURIComponent(entryInput.trim())}`);
+    } else {
+      navigate("/analyse");
+    }
+  };
+
+  const toggleBookmark = (id: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setBookmarked(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   return <div className="page-container home-page">
     <section className="front-intro">
@@ -30,8 +78,19 @@ export default function Home() {
       <div className="brief-entry">
         <div className="entry-top"><SectionLabel tone="research">Start a research brief</SectionLabel><span>For your next rabbit hole</span></div>
         <h3>Paste a link or headline.<br /><em>We’ll do the background work.</em></h3>
-        <div className="entry-input"><input aria-label="Paste a link or headline" placeholder="https://… or type a headline" /><button aria-label="Analyse link" onClick={() => window.location.href = "/analyse"}><ArrowRight size={18} /></button></div>
-        <p className="entry-note"><Sparkles size={13} /> In this edition, analysis is shown from cached demo research.</p>
+        <div className="entry-input">
+          <input
+            aria-label="Paste a link or headline"
+            placeholder="https://… or type a headline"
+            value={entryInput}
+            onChange={e => setEntryInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleStartBrief(); }}
+          />
+          <button aria-label="Analyse link" onClick={handleStartBrief}>
+            <ArrowRight size={18} />
+          </button>
+        </div>
+        <p className="entry-note"><Sparkles size={13} /> Enter any news link or headline to generate a verified brief.</p>
       </div>
     </section>
 
@@ -63,19 +122,56 @@ export default function Home() {
         {secondary.map((story, index) => <article className="brief-card" key={story.id}>
           <div className="card-index">0{index + 2}</div><SectionLabel>{story.kicker}</SectionLabel>
           <Link href={`/story/${story.id}`}><h3>{story.title}</h3></Link><p>{story.dek}</p>
-          <div className="card-footer"><span>{story.source}</span><span>{story.readingTime}</span><Bookmark size={15} /></div>
+          <div className="card-footer">
+            <span>{story.source}</span>
+            <span>{story.readingTime}</span>
+            <button
+              type="button"
+              className={`bookmark-btn ${bookmarked[story.id] ? "saved" : ""}`}
+              onClick={(e) => toggleBookmark(story.id, e)}
+              aria-label={bookmarked[story.id] ? "Remove bookmark" : "Save bookmark"}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 0 }}
+            >
+              <Bookmark size={15} fill={bookmarked[story.id] ? "currentColor" : "none"} />
+            </button>
+          </div>
         </article>)}
-        <div className="brief-card feed-card"><div className="card-index">LIVE</div><SectionLabel>Headline feed</SectionLabel><h3>What has moved today</h3>
-          <div className="feed-lines">{stories.slice(2, 5).map(story => <Link key={story.id} href={`/story/${story.id}`}><span>{story.topic}</span><strong>{story.title}</strong><small>{story.published}</small></Link>)}</div>
+        <div className="brief-card feed-card">
+          <div className="card-index">{feedIsDemo ? "DEMO" : "LIVE"}</div>
+          <SectionLabel>Headline feed {feedIsDemo ? "· Demo edition" : ""}</SectionLabel>
+          <h3>What has moved today</h3>
+          <div className="feed-lines">
+            {feedItems.length > 0 ? (
+              feedItems.map((item, idx) => (
+                <Link key={idx} href={`/analyse?q=${encodeURIComponent(item.title)}`}>
+                  <span>{item.source}</span>
+                  <strong>{item.title}</strong>
+                  <small>{new Date(item.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</small>
+                </Link>
+              ))
+            ) : (
+              stories.slice(2, 5).map(story => (
+                <Link key={story.id} href={`/story/${story.id}`}>
+                  <span>{story.topic}</span>
+                  <strong>{story.title}</strong>
+                  <small>{story.published}</small>
+                </Link>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </section>
 
     <section className="most-discussed">
-      <div className="discussed-heading"><SectionLabel tone="discussion">Public discussion</SectionLabel><h2>Read the room.</h2><p>Three stories with the most thoughtful disagreement this week.</p></div>
+      <div className="discussed-heading">
+        <SectionLabel tone="discussion">Public discussion · Demo data, not live</SectionLabel>
+        <h2>Read the room.</h2>
+        <p>Three stories with the most thoughtful disagreement this week.</p>
+      </div>
       <div className="discussed-list">{mostDiscussed.map(item => <Link className="discussed-item" href={`/story/${item.id}`} key={item.id}><span>{item.label}</span><div><strong>{item.title}</strong><small><MessageCircle size={13} /> {item.count}</small></div><ArrowRight size={16} /></Link>)}</div>
     </section>
 
-    <div className="home-footnote"><Clock3 size={14} /><span>Stories are seeded for this capstone edition. No full articles are stored here — only links, snippets, and our own explanations.</span><ExternalLink size={13} /></div>
+    <div className="home-footnote"><Clock3 size={14} /><span>Stories are curated for this edition. No full articles are stored here — only links, snippets, and verified explanations.</span><ExternalLink size={13} /></div>
   </div>;
 }

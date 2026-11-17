@@ -189,6 +189,18 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist", "public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/three")) {
+            return "three-vendor";
+          }
+          if (id.includes("node_modules/gsap") || id.includes("node_modules/lenis") || id.includes("node_modules/framer-motion")) {
+            return "motion-vendor";
+          }
+        },
+      },
+    },
   },
   server: {
     host: true,
